@@ -20,8 +20,8 @@ Improvements:
    1. Don't update the same replica count - Done
    2. Refactor the code to make it more readable - Done
    3. Exit gracefully on exiting the program - Done
-   4. Add more configuration options like env based config.
-   5. Add more logging and error handling.
+   4. Add more configuration options like env based config. - Done
+   5. Add more logging and error handling. - Done
    6. Add unit tests 
    7. update code docs.
    8. containerize the application. 

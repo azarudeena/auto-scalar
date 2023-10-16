@@ -6,7 +6,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"golang.org/x/time/rate"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,14 +27,12 @@ const ()
 
 var (
 	client         *resty.Client
-	rt             = rate.NewLimiter(rate.Every(1*time.Second), ratePerSecond)
 	logger         = logrus.New()
 	targetCPUUsage float64
 	statusAPIURL   string
 	environment    string
 	replicasAPIURL string
 	checkInterval  time.Duration
-	ratePerSecond  int
 )
 
 func init() {
@@ -45,7 +42,6 @@ func init() {
 	viper.SetDefault("REPLICAS_API_URL", "http://localhost:8123/app/replicas")
 	viper.SetDefault("CHECK_INTERVAL", "5s")
 	viper.SetDefault("TARGET_CPU_USAGE", 0.80)
-	viper.SetDefault("RATE_PER_SECOND", 1)
 	viper.SetDefault("ENVIRONMENT", "dev")
 
 	viper.AutomaticEnv()
@@ -54,7 +50,6 @@ func init() {
 	replicasAPIURL = viper.GetString("REPLICAS_API_URL")
 	checkInterval = viper.GetDuration("CHECK_INTERVAL")
 	targetCPUUsage = viper.GetFloat64("TARGET_CPU_USAGE")
-	ratePerSecond = viper.GetInt("RATE_PER_SECOND")
 	environment = viper.GetString("ENVIRONMENT")
 
 	// Logger setup
@@ -90,11 +85,6 @@ func main() {
 }
 
 func monitorAndUpdateReplicas() {
-
-	if !rt.Allow() {
-		logger.Error("Rate Limit Exceeded")
-		return
-	}
 
 	status, err := getAppStatus()
 	if err != nil {
