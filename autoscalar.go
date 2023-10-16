@@ -48,6 +48,7 @@ func monitorAndUpdateReplicas() {
 	status, err := getAppStatus()
 	if err != nil {
 		log.Fatalf("Error fetching app status: %v", err)
+		return
 	}
 
 	fmt.Println("Retrieved AppStatus CPU :", status.CPU["highPriority"])
@@ -57,11 +58,13 @@ func monitorAndUpdateReplicas() {
 
 	fmt.Println("Replica count to update :", newReplicaCounts)
 
-	err = updateReplicaCount(newReplicaCounts)
-	if err != nil {
-		log.Fatalf("Error updating replica status: %v", err)
+	if newReplicaCounts != status.Replicas {
+		err = updateReplicaCount(newReplicaCounts)
+		if err != nil {
+			log.Fatalf("Error updating replica status: %v", err)
+		}
+		fmt.Println("Replica count updated to :", newReplicaCounts)
 	}
-	fmt.Println("Replica count updated to :", newReplicaCounts)
 }
 
 // call /app/status to get CPU and replica count. done
