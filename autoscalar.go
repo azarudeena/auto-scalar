@@ -33,20 +33,35 @@ const (
 
 func main() {
 
-	_, err := getAppStatus()
+	status, err := getAppStatus()
 	if err != nil {
 		log.Fatalf("Error fetching app status: %v", err)
 	}
 
-	fmt.Println("Idea to Code")
+	fmt.Println("Retrieved AppStatus CPU :", status.CPU["highPriority"])
+	fmt.Println("Retrieved replica count :", status.Replicas)
 }
 
 func getAppStatus() (*AppStatus, error) {
-	resp, err := http.Get(statusAPIURL)
+	req, err := http.NewRequest("GET", statusAPIURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Accept header to application/json
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("status: %d, response: %s", resp.StatusCode, body)
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
