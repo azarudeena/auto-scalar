@@ -1,5 +1,7 @@
 package main
 
+// call /app/replicas to PUT the new replica count
+
 import (
 	"encoding/json"
 	"fmt"
@@ -9,12 +11,7 @@ import (
 	"time"
 )
 
-// declare types for the AppStatus and ReplicaResponse - done
-// call /app/status to get CPU and replica count. done
-// calculate the replica new count in a way that CPU <.80
-//		inc replica will dec CPU and dec replica will inc CPU
-// call /app/replicas to PUT the new replica count
-
+// declare types for the AppStatus and Replicas - done
 type AppStatus struct {
 	CPU      map[string]float64 `json:"cpu"`
 	Replicas int                `json:"replicas"`
@@ -51,8 +48,13 @@ func main() {
 
 	fmt.Println("Retrieved AppStatus CPU :", status.CPU["highPriority"])
 	fmt.Println("Retrieved replica count :", status.Replicas)
+
+	newReplicaCounts := calculateReplicaCounts(status)
+
+	fmt.Println("Replica count to update :", newReplicaCounts)
 }
 
+// call /app/status to get CPU and replica count. done
 func getAppStatus() (*AppStatus, error) {
 	resp, err := client.R().Get(statusAPIURL)
 	if err != nil {
@@ -70,4 +72,23 @@ func getAppStatus() (*AppStatus, error) {
 	}
 
 	return &status, nil
+}
+
+// calculate the replica new count in a way that CPU <.80 Done
+//
+//	inc replica will dec CPU and dec replica will inc CPU.
+//
+// replica is inversely proportional to CPU. factor of current cpu to target with exiting cpu.
+func calculateReplicaCounts(status *AppStatus) int {
+	currentCPU := status.CPU["highPriority"]
+
+	ratio := currentCPU / targetCPUUsage
+
+	estimate := float64(status.Replicas) * ratio
+
+	if estimate < 1 {
+		return 1
+	}
+
+	return int(estimate + 0.5) // adding 0.5 to cover the edge case of 0.8x cpu utils
 }
