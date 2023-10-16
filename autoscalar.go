@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"golang.org/x/time/rate"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -23,10 +27,13 @@ const (
 	targetCPUUsage = 0.80
 	statusAPIURL   = "http://localhost:8123/app/status"
 	replicasAPIURL = "http://localhost:8123/app/replicas"
-	checkInterval  = 5 * time.Second
+	checkInterval  = 2 * time.Second
 )
 
-var client *resty.Client
+var (
+	client *resty.Client
+	rt     = rate.NewLimiter(rate.Every(1*time.Second), 1)
+)
 
 func init() {
 
@@ -38,16 +45,31 @@ func init() {
 }
 
 func main() {
-	for {
-		go monitorAndUpdateReplicas()
-		time.Sleep(checkInterval)
-	}
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		for {
+			monitorAndUpdateReplicas()
+			time.Sleep(checkInterval)
+		}
+	}()
+
+	<-stop
+	log.Println("Shutting down gracefully...")
 }
 
 func monitorAndUpdateReplicas() {
+
+	if !rt.Allow() {
+		log.Println("Rate Limit Exceeded")
+		return
+	}
+
 	status, err := getAppStatus()
 	if err != nil {
-		log.Fatalf("Error fetching app status: %v", err)
+		log.Println("Error fetching app status: %v", err)
 		return
 	}
 
@@ -59,9 +81,9 @@ func monitorAndUpdateReplicas() {
 	fmt.Println("Replica count to update :", newReplicaCounts)
 
 	if newReplicaCounts != status.Replicas {
-		err = updateReplicaCount(newReplicaCounts)
+		err := updateReplicaCount(newReplicaCounts)
 		if err != nil {
-			log.Fatalf("Error updating replica status: %v", err)
+			log.Println("Error updating replica status: %v", err)
 		}
 		fmt.Println("Replica count updated to :", newReplicaCounts)
 	}
