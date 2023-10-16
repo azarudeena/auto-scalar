@@ -3,14 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"github.com/go-resty/resty/v2"
 	"log"
 	"net/http"
 	"time"
 )
 
 // declare types for the AppStatus and ReplicaResponse - done
-// call /app/status to get CPU and replica count.
+// call /app/status to get CPU and replica count. done
 // calculate the replica new count in a way that CPU <.80
 //		inc replica will dec CPU and dec replica will inc CPU
 // call /app/replicas to PUT the new replica count
@@ -31,6 +31,17 @@ const (
 	checkInterval  = 5 * time.Second
 )
 
+var client *resty.Client
+
+func init() {
+
+	// Resty client setup
+	client = resty.New()
+	client.SetHeader("Accept", "application/json")
+	client.SetRetryCount(3)
+
+}
+
 func main() {
 
 	status, err := getAppStatus()
@@ -43,33 +54,17 @@ func main() {
 }
 
 func getAppStatus() (*AppStatus, error) {
-	req, err := http.NewRequest("GET", statusAPIURL, nil)
+	resp, err := client.R().Get(statusAPIURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// Accept header to application/json
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("status: %d, response: %s", resp.StatusCode, body)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("AppStatus statusCode: %d, response: %s", resp.StatusCode(), resp.String())
 	}
 
 	var status AppStatus
-	err = json.Unmarshal(body, &status)
+	err = json.Unmarshal(resp.Body(), &status)
 	if err != nil {
 		return nil, err
 	}
