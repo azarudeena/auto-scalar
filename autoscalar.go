@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"golang.org/x/time/rate"
 	"net/http"
 	"os"
@@ -23,24 +24,47 @@ type Replicas struct {
 	Replicas int `json:"replicas"`
 }
 
-const (
-	targetCPUUsage = 0.80
-	statusAPIURL   = "http://localhost:8123/app/status"
-	replicasAPIURL = "http://localhost:8123/app/replicas"
-	checkInterval  = 5 * time.Second
-)
+const ()
 
 var (
-	client *resty.Client
-	rt     = rate.NewLimiter(rate.Every(1*time.Second), 1)
-	logger = logrus.New()
+	client         *resty.Client
+	rt             = rate.NewLimiter(rate.Every(1*time.Second), ratePerSecond)
+	logger         = logrus.New()
+	targetCPUUsage float64
+	statusAPIURL   string
+	environment    string
+	replicasAPIURL string
+	checkInterval  time.Duration
+	ratePerSecond  int
 )
 
 func init() {
 
+	// Config Setup
+	viper.SetDefault("STATUS_API_URL", "http://localhost:8123/app/status")
+	viper.SetDefault("REPLICAS_API_URL", "http://localhost:8123/app/replicas")
+	viper.SetDefault("CHECK_INTERVAL", "5s")
+	viper.SetDefault("TARGET_CPU_USAGE", 0.80)
+	viper.SetDefault("RATE_PER_SECOND", 1)
+	viper.SetDefault("ENVIRONMENT", "dev")
+
+	viper.AutomaticEnv()
+
+	statusAPIURL = viper.GetString("STATUS_API_URL")
+	replicasAPIURL = viper.GetString("REPLICAS_API_URL")
+	checkInterval = viper.GetDuration("CHECK_INTERVAL")
+	targetCPUUsage = viper.GetFloat64("TARGET_CPU_USAGE")
+	ratePerSecond = viper.GetInt("RATE_PER_SECOND")
+	environment = viper.GetString("ENVIRONMENT")
+
 	// Logger setup
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetOutput(os.Stdout)
+	logger.SetLevel(logrus.DebugLevel)
+
+	if environment == "prod" {
+		logger.SetLevel(logrus.InfoLevel)
+	}
 
 	// Resty client setup
 	client = resty.New()
@@ -120,14 +144,13 @@ func getAppStatus() (*AppStatus, error) {
 //
 // replica is inversely proportional to CPU. calculate replicas as factor of current replicas to target with exiting cpu.
 func calculateReplicaCounts(status *AppStatus) int {
+
 	currentCPU := status.CPU["highPriority"]
-
 	ratio := currentCPU / targetCPUUsage
-
 	estimate := float64(status.Replicas) * ratio
 
 	if estimate < 1 {
-		return 1
+		return 1 // minimum 1 replica is needed.
 	}
 
 	return int(estimate + 0.5) // adding 0.5 to cover the edge case of 0.8x cpu utils
