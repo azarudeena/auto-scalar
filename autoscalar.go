@@ -1,7 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"time"
 )
 
@@ -24,10 +28,36 @@ const (
 	targetCPUUsage = 0.80
 	statusAPIURL   = "http://localhost:8123/app/status"
 	replicasAPIURL = "http://localhost:8123/app/replicas"
-	checkInterval  = 10 * time.Second
+	checkInterval  = 5 * time.Second
 )
 
 func main() {
 
+	_, err := getAppStatus()
+	if err != nil {
+		log.Fatalf("Error fetching app status: %v", err)
+	}
+
 	fmt.Println("Idea to Code")
+}
+
+func getAppStatus() (*AppStatus, error) {
+	resp, err := http.Get(statusAPIURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var status AppStatus
+	err = json.Unmarshal(body, &status)
+	if err != nil {
+		return nil, err
+	}
+
+	return &status, nil
 }
