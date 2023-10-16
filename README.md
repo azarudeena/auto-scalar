@@ -23,3 +23,5 @@ Improvements:
    4. Add more configuration options like env based config.
    5. Add more logging and error handling.
    6. Add unit tests 
+   7. update code docs.
+   8. containerize the application. 

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,15 +27,20 @@ const (
 	targetCPUUsage = 0.80
 	statusAPIURL   = "http://localhost:8123/app/status"
 	replicasAPIURL = "http://localhost:8123/app/replicas"
-	checkInterval  = 2 * time.Second
+	checkInterval  = 5 * time.Second
 )
 
 var (
 	client *resty.Client
 	rt     = rate.NewLimiter(rate.Every(1*time.Second), 1)
+	logger = logrus.New()
 )
 
 func init() {
+
+	// Logger setup
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.SetOutput(os.Stdout)
 
 	// Resty client setup
 	client = resty.New()
@@ -57,35 +62,35 @@ func main() {
 	}()
 
 	<-stop
-	log.Println("Shutting down gracefully...")
+	logger.Info("Shutting down gracefully...")
 }
 
 func monitorAndUpdateReplicas() {
 
 	if !rt.Allow() {
-		log.Println("Rate Limit Exceeded")
+		logger.Error("Rate Limit Exceeded")
 		return
 	}
 
 	status, err := getAppStatus()
 	if err != nil {
-		log.Println("Error fetching app status: %v", err)
+		logger.Errorf("Error fetching app status: %v", err)
 		return
 	}
 
-	fmt.Println("Retrieved AppStatus CPU :", status.CPU["highPriority"])
-	fmt.Println("Retrieved replica count :", status.Replicas)
+	logger.Debugf("Retrieved AppStatus CPU : %f ", status.CPU["highPriority"])
+	logger.Debugf("Retrieved replica count: %d", status.Replicas)
 
 	newReplicaCounts := calculateReplicaCounts(status)
 
-	fmt.Println("Replica count to update :", newReplicaCounts)
+	logger.Debugf("Replica count to update : %d", newReplicaCounts)
 
 	if newReplicaCounts != status.Replicas {
 		err := updateReplicaCount(newReplicaCounts)
 		if err != nil {
-			log.Println("Error updating replica status: %v", err)
+			logger.Errorf("Error updating replica status: %v", err)
 		}
-		fmt.Println("Replica count updated to :", newReplicaCounts)
+		logger.Infof("Replica count updated to :%d", newReplicaCounts)
 	}
 }
 
@@ -128,7 +133,7 @@ func calculateReplicaCounts(status *AppStatus) int {
 	return int(estimate + 0.5) // adding 0.5 to cover the edge case of 0.8x cpu utils
 }
 
-// call /app/replicas to PUT the new replica count - Done
+// call /app/replicas to PUT the new replica count
 func updateReplicaCount(newCount int) error {
 	data := Replicas{
 		Replicas: newCount,
