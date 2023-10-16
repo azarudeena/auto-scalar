@@ -1,8 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// declare types for the AppStatus and ReplicaResponse
+// declare types for the AppStatus and ReplicaResponse - done
 // call /app/status to get CPU and replica count.
 // calculate the replica new count in a way that CPU <.80
 //		inc replica will dec CPU and dec replica will inc CPU
@@ -16,6 +19,13 @@ type AppStatus struct {
 type Replicas struct {
 	Replicas int `json:"replicas"`
 }
+
+const (
+	targetCPUUsage = 0.80
+	statusAPIURL   = "http://localhost:8123/app/status"
+	replicasAPIURL = "http://localhost:8123/app/replicas"
+	checkInterval  = 10 * time.Second
+)
 
 func main() {
 
