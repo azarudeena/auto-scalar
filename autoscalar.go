@@ -38,7 +38,13 @@ func init() {
 }
 
 func main() {
+	for {
+		go monitorAndUpdateReplicas()
+		time.Sleep(checkInterval)
+	}
+}
 
+func monitorAndUpdateReplicas() {
 	status, err := getAppStatus()
 	if err != nil {
 		log.Fatalf("Error fetching app status: %v", err)
