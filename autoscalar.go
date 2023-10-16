@@ -1,7 +1,5 @@
 package main
 
-// call /app/replicas to PUT the new replica count
-
 import (
 	"encoding/json"
 	"fmt"
@@ -52,6 +50,12 @@ func main() {
 	newReplicaCounts := calculateReplicaCounts(status)
 
 	fmt.Println("Replica count to update :", newReplicaCounts)
+
+	err = updateReplicaCount(newReplicaCounts)
+	if err != nil {
+		log.Fatalf("Error updating replica status: %v", err)
+	}
+	fmt.Println("Replica count updated to :", newReplicaCounts)
 }
 
 // call /app/status to get CPU and replica count. done
@@ -62,7 +66,7 @@ func getAppStatus() (*AppStatus, error) {
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("AppStatus statusCode: %d, response: %s", resp.StatusCode(), resp.String())
+		return nil, fmt.Errorf("AppStatus failed statusCode: %d, response: %s", resp.StatusCode(), resp.String())
 	}
 
 	var status AppStatus
@@ -78,7 +82,7 @@ func getAppStatus() (*AppStatus, error) {
 //
 //	inc replica will dec CPU and dec replica will inc CPU.
 //
-// replica is inversely proportional to CPU. factor of current cpu to target with exiting cpu.
+// replica is inversely proportional to CPU. calculate replicas as factor of current replicas to target with exiting cpu.
 func calculateReplicaCounts(status *AppStatus) int {
 	currentCPU := status.CPU["highPriority"]
 
@@ -91,4 +95,27 @@ func calculateReplicaCounts(status *AppStatus) int {
 	}
 
 	return int(estimate + 0.5) // adding 0.5 to cover the edge case of 0.8x cpu utils
+}
+
+// call /app/replicas to PUT the new replica count - Done
+func updateReplicaCount(newCount int) error {
+	data := Replicas{
+		Replicas: newCount,
+	}
+
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(data).
+		Put(replicasAPIURL)
+
+	if err != nil {
+		return err
+	}
+
+	// Check for 200 OK or 204 No Content
+	if resp.StatusCode() != http.StatusOK && resp.StatusCode() != http.StatusNoContent {
+		return fmt.Errorf("update failed, status: %d, response: %s", resp.StatusCode(), resp.String())
+	}
+
+	return nil
 }
