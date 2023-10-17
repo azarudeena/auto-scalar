@@ -16,7 +16,8 @@ func init() {
 
 var client *resty.Client
 
-// call /app/status to get CPU and replica count. done
+// getAppStatus retrieves the CPU usage and replica count.
+// Returns the AppStatus or an error if the retrieval fails.
 func getAppStatus() (*AppStatus, error) {
 	resp, err := client.R().Get(statusAPIURL)
 	if err != nil {
@@ -36,11 +37,8 @@ func getAppStatus() (*AppStatus, error) {
 	return &status, nil
 }
 
-// calculate the replica new count in a way that CPU <.80 Done
-//
-//	inc replica will dec CPU and dec replica will inc CPU.
-//
-// replica is inversely proportional to CPU. calculate replicas as factor of current replicas to target with exiting cpu.
+// calculateReplicaCounts calculates the desired number of replicas based on the current CPU usage.
+// It ensures that the number of replicas is adjusted to keep the CPU usage below the target threshold.
 func calculateReplicaCounts(status *AppStatus) int {
 
 	currentCPU := status.CPU["highPriority"]
@@ -51,10 +49,11 @@ func calculateReplicaCounts(status *AppStatus) int {
 		return 1 // minimum 1 replica is needed.
 	}
 
-	return int(estimate + 0.5) // adding 0.5 to cover the edge case of 0.8x cpu utils
+	return int(estimate + 0.5) // adding 0.5 to round off the estimate.
 }
 
-// call /app/replicas to PUT the new replica count
+// updateReplicaCount updates the number of replicas for the application.
+// Returns an error if the update fails.
 func updateReplicaCount(newCount int) error {
 	data := Replicas{
 		Replicas: newCount,

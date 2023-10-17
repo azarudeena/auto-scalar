@@ -1,5 +1,7 @@
 package main
 
+// monitorAndUpdateReplicas is a routine that checks the application's CPU usage and updates
+// the replica count to ensure the CPU usage stays below the target threshold.
 func monitorAndUpdateReplicas() {
 
 	status, err := getAppStatus()

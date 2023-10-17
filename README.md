@@ -22,6 +22,38 @@ Improvements:
    3. Exit gracefully on exiting the program - Done
    4. Add more configuration options like env based config. - Done
    5. Add more logging and error handling. - Done
-   6. Add unit tests 
-   7. update code docs.
-   8. containerize the application. 
+   6. Add unit tests - done
+   7. update code docs. - done
+   8. containerize the application. - done
+
+To build the application, run the following command to generate the binary in the name of auto-scalar.
+```
+go build -out auto-scalar .
+```
+
+To run this application, run the following command. 
+```
+go run .
+```
+
+To run the unit tests, run the following command. 
+```
+go test . 
+```
+
+Container
+
+To build the container, run the following command. 
+```
+docker build -t auto-scalar .
+```
+
+To Run the container, run the following command. 
+```
+docker run -e STATUS_API_URL=http://host.docker.internal:8123/app/status -e REPLICAS_API_URL=http://host.docker.internal:8123/app/replicas -e ENVIRONMENT=prod auto-scalar
+```
+
+Note: update the STATUS_API_URL and REPLICAS_API_URL with respective endpoints based on the platfrom. Given example is for the MacOS
+
+
+Potentially this application can be further iterated to make it more organized and also depending on the deployment platform and service discovery. 

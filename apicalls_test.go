@@ -56,6 +56,18 @@ func TestCalculateNewReplicaCount(t *testing.T) {
 	assert.Equal(t, 9, newReplicaCount) // Based on the logic, this should be the result.
 }
 
+func TestCalculateNewReplicaCount_Maintain1Replica(t *testing.T) {
+	status := &AppStatus{
+		CPU: map[string]float64{
+			"highPriority": 0.1,
+		},
+		Replicas: 1,
+	}
+
+	newReplicaCount := calculateReplicaCounts(status)
+	assert.Equal(t, 1, newReplicaCount) // Based on the logic, this should be the result.
+}
+
 func TestUpdateReplicaCount(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "PUT" {
