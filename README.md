@@ -28,7 +28,7 @@ Improvements:
 
 To build the application, run the following command to generate the binary in the name of auto-scalar.
 ```
-go build -out auto-scalar .
+go build -o auto-scalar .
 ```
 
 To run this application, run the following command. 
